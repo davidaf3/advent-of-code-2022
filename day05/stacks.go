@@ -76,16 +76,17 @@ func (c *CrateMover9001Command) run(stacks []*Stack[byte]) {
 }
 
 func getStacksFromText(lines []string) []*Stack[byte] {
-	lastIdx := len(lines) - 1
-	lastLine := strings.ReplaceAll(lines[lastIdx], " ", "")
-	nStacks := int(cToN(lastLine[len(lastLine)-1]))
+	lastLine := len(lines) - 1
+	stackIndexes := strings.Split(strings.Trim(lines[lastLine], " "), " ")
+	nStacks, err := strconv.Atoi(stackIndexes[len(stackIndexes)-1])
+	errorHandler(err)
 
 	var stacks []*Stack[byte]
 	for i := 0; i < nStacks; i++ {
 		stacks = append(stacks, newStack[byte]())
 	}
 
-	for i := lastIdx - 1; i >= 0; i-- {
+	for i := lastLine - 1; i >= 0; i-- {
 		fillStacks(lines[i], stacks)
 	}
 
@@ -99,10 +100,6 @@ func fillStacks(line string, stacks []*Stack[byte]) {
 			stacks[stack].push(line[linePos+1])
 		}
 	}
-}
-
-func cToN(char byte) byte {
-	return char - 48
 }
 
 func main() {
