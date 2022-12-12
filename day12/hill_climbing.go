@@ -51,17 +51,17 @@ type Node struct {
 	height byte
 }
 
-func (n *Node) getNeighbours(heightMap [][]byte) []*Node {
+func (n *Node) getNeighbours(heightMap [][]byte, testHeight func(byte, byte) bool) []*Node {
 	var neighbours []*Node
 
 	for _, delta := range []int{-1, 1} {
 		if n.i+delta >= 0 && n.i+delta < len(heightMap) &&
-			heightMap[n.i+delta][n.j] <= n.height+1 {
+			testHeight(n.height, heightMap[n.i+delta][n.j]) {
 			neighbours = append(neighbours, newNode(heightMap, n.i+delta, n.j))
 		}
 
 		if n.j+delta >= 0 && n.j+delta < len(heightMap[n.i]) &&
-			heightMap[n.i][n.j+delta] <= n.height+1 {
+			testHeight(n.height, heightMap[n.i][n.j+delta]) {
 			neighbours = append(neighbours, newNode(heightMap, n.i, n.j+delta))
 		}
 	}
@@ -82,7 +82,8 @@ func newNode(heightMap [][]byte, i, j int) *Node {
 	}
 }
 
-func shortestPath(heightMap [][]byte, nodes []*Node, start, end *Node) []int {
+func shortestPath(heightMap [][]byte, nodes []*Node, start *Node,
+	testEnd func(*Node) bool, testHeight func(byte, byte) bool) ([]int, *Node) {
 	visited := make([]bool, len(nodes))
 	distance := make([]int, len(nodes))
 
@@ -105,16 +106,16 @@ func shortestPath(heightMap [][]byte, nodes []*Node, start, end *Node) []int {
 			continue
 		}
 
-		if closest.equals(end) {
-			return distance
+		if testEnd(closest) {
+			return distance, closest
 		}
 
 		if distance[closest.index] == -1 {
-			return nil
+			return nil, nil
 		}
 
 		closestDist := distance[closest.index]
-		for _, neighbour := range closest.getNeighbours(heightMap) {
+		for _, neighbour := range closest.getNeighbours(heightMap, testHeight) {
 			neighbourDist := distance[neighbour.index]
 			if !visited[neighbour.index] &&
 				(neighbourDist == -1 || closestDist+1 < neighbourDist) {
@@ -126,7 +127,7 @@ func shortestPath(heightMap [][]byte, nodes []*Node, start, end *Node) []int {
 		visited[closest.index] = true
 	}
 
-	return nil
+	return nil, nil
 }
 
 func parseHeightMap(scanner *bufio.Scanner) ([][]byte, []*Node, *Node, *Node) {
@@ -171,24 +172,17 @@ func main() {
 
 	scanner := bufio.NewScanner(f)
 	heightMap, nodes, start, end := parseHeightMap(scanner)
-	distances := shortestPath(heightMap, nodes, start, end)
-	minPath := distances[end.index]
+	testEnd := func(n *Node) bool { return n.equals(end) }
+	testHeight := func(hSrc byte, hDst byte) bool { return hDst <= hSrc+1 }
+	distances, _ := shortestPath(heightMap, nodes, start, testEnd, testHeight)
 
-	fmt.Println(minPath)
+	fmt.Println(distances[end.index])
 
-	for i := range heightMap {
-		for j := range heightMap[i] {
-			if heightMap[i][j] == 'a' && (i != start.i || j != start.j) {
-				start = newNode(heightMap, i, j)
-				distances = shortestPath(heightMap, nodes, start, end)
-				if distances != nil && distances[end.index] < minPath {
-					minPath = distances[end.index]
-				}
-			}
-		}
-	}
+	testEnd = func(n *Node) bool { return heightMap[n.i][n.j] == 'a' }
+	testHeight = func(hSrc byte, hDst byte) bool { return hDst+1 >= hSrc }
+	distances, scenicStart := shortestPath(heightMap, nodes, end, testEnd, testHeight)
 
-	fmt.Println(minPath)
+	fmt.Println(distances[scenicStart.index])
 }
 
 func errorHandler(err error) {
